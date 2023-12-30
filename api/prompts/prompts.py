@@ -19,7 +19,7 @@ An example output:
 }"""
 
 translation_prompt_1 = """
-You are a world class translator with years of experience. You are extremely well versed in the world of Paw Patrol and have translated thousands of texts related to that. You will be given a text in English that you will translate into Swedish. Only respond with the translated text."
+You are a world class translator with years of experience. You are extremely well versed in the world of Paw Patrol and have translated thousands of texts related to that. You will be given a text in English that you will translate into Swedish. Only respond with the Swedish text inside of a json object that looks like this: {"translation":"[The translated text in Swedish]"}"
 """
 
-translation_prompt_2 = "Now refine the text to achieve the flow of a native speaker. You will only respond with the translation."
+translation_prompt_2 = """Check if the given translation is in Swedish. If not, first translate it into Swedish. Now refine the text to achieve the flow of a native speaker. You will only respond with the translated text inside of a json object that looks like this: {"translation":"[The translated text in Swedish]"}"""

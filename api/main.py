@@ -1,59 +1,45 @@
-# main.py
-# Prototype retrieving openai output
-# - Get Paw Patrol mission details
-# - Create initial translation
-# - Refine translation
-# - Create audio file via TTS endpoint
-from openai import OpenAI
-from openai.types import Completion
-import json
+from flask import Flask, jsonify, send_file
+import os
 from dotenv import load_dotenv
-from prompts import mission_prompt, translation_prompt_1, translation_prompt_2
+from threading import Thread
+import time
 
 load_dotenv()
-
-OPENAI_MODEL = "gpt-3.5-turbo-1106"
-
-
-class ChatApp:
-    def __init__(self, system_message: str, **options):
-        # Setting the API key to use the OpenAI API
-        self.client = OpenAI()
-        self.messages = [
-            {"role": "system", "content": system_message},
-        ]
-        self.options = options
-
-    def chat(self, message):
-        self.messages.append({"role": "user", "content": message})
-        response: Completion = self.client.chat.completions.create(
-            model=OPENAI_MODEL, **self.options, messages=self.messages
-        )
-        self.messages.append(
-            {"role": "assistant", "content": response.choices[0].message.content}
-        )
-        return response.choices[0].message.content
+from controllers import maintain_mission_buffer, get_latest_unrequested_mission
 
 
-mission_chat = ChatApp(
-    mission_prompt,
-    response_format={"type": "json_object"},
-    temperature=1.4,
-    max_tokens=4095,
-    top_p=1,
-    frequency_penalty=0.3,
+def run_mission_buffer_maintenance():
+    while True:
+        maintain_mission_buffer()
+        time.sleep(60 * 5)  # Run every 10 minutes, adjust the timing as needed
+
+
+# Start the background thread
+buffer_thread = Thread(target=run_mission_buffer_maintenance)
+buffer_thread.daemon = (
+    True  # This ensures that the thread will close when the main process exits
 )
+buffer_thread.start()
 
-mission_response = mission_chat.chat("Generate one mission")
-# mission_response_object = json.loads(mission_response)
-mission_response_data = json.loads(mission_response)
 
-translation_chat = ChatApp(translation_prompt_1, temperature=1.2)
-translation_response_1 = translation_chat.chat(
-    mission_response_data.get("mission_script")
-)
-translation_response_2 = translation_chat.chat(translation_prompt_2)
+app = Flask(__name__)
 
-mission_response_data["translation"] = translation_response_2
 
-print(json.dumps(mission_response_data))
+@app.route("/mission", methods=["GET"])
+def get_mission():
+    return jsonify(get_latest_unrequested_mission())
+
+
+@app.route("/mission-audio/<int:id>", methods=["GET"])
+def get_mission_audio(id):
+    audio_file = f"mission_{id}.wav"
+    audio_path = os.path.join("data/audio", audio_file)
+
+    if os.path.exists(audio_path):
+        return send_file(audio_path)
+    else:
+        return "Audio file not found", 404
+
+
+if __name__ == "__main__":
+    app.run(debug=True)
