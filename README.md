@@ -65,11 +65,22 @@ Building an interactive Paw Patrol Tower for engaging play experiences. The proj
 
 2. **Raspberry Pi Setup**:
 
-   - Install Flask.
+   - ~~Install Flask.~~
    - Create API for missions.
+     - Functional but missions are keep being generated, ignoring the buffer limit
+     - Hitting rate limits on TTS endpoint
+     - When audio creation fails, a mission is still present in the database. So retry mechanics are required
    - ~~Set up ChatGPT integration for mission generation.~~
-   - Convert text scripts to audio using OpenAI TTS.
-   - Manage missions and metadata using SQLite.
+   - ~~Convert text scripts to audio using OpenAI TTS.~~
+   - ~~Manage missions and metadata using SQLite.~~
+   - Dockerize the application
+   - Python dependencies:
+     - openai
+     - flask
+     - sqlalchemy
+     - gunicorn
+   - System dependency:
+     - ffmpeg
 
 3. **Integration Testing**:
 
