@@ -1,6 +1,7 @@
 from openai_integration import TTS
 import subprocess
 import os
+import logging
 
 
 def create_directory_if_not_yet_exists():
@@ -44,17 +45,27 @@ def convert_mp3_to_wav(path):
         raise Exception(f"Error during conversion: {e}")
 
 
-def create_audio_file(file_name: str, script: str) -> bool:
-    try:
-        path = create_directory_if_not_yet_exists()
-        mp3_path = f"{path}/{file_name}.mp3"
-        create_mp3_audio_file(mp3_path, script)
-        wav_path = convert_mp3_to_wav(mp3_path)
+import time
 
-        # Delete the original MP3 file after successful conversion
-        if wav_path:
-            os.remove(mp3_path)
-            return True
-    except Exception as e:
-        print(f"An error occurred: {e}")
-        return False
+
+def create_audio_file(file_name: str, script: str) -> bool:
+    max_retries = 3
+    retry_delay = 20  # Initial delay in seconds
+
+    for attempt in range(max_retries):
+        try:
+            path = create_directory_if_not_yet_exists()
+            mp3_path = f"{path}/{file_name}.mp3"
+            create_mp3_audio_file(mp3_path, script)
+            wav_path = convert_mp3_to_wav(mp3_path)
+
+            if wav_path:
+                os.remove(mp3_path)
+                return True
+        except Exception as e:
+            logging.error(f"Attempt {attempt + 1}: An error occurred: {e}")
+            print(f"Attempt {attempt + 1}: An error occurred: {e}")
+            time.sleep(retry_delay)
+            retry_delay *= 2  # Exponential backoff
+
+    return False

@@ -5,13 +5,23 @@ from threading import Thread
 import time
 
 load_dotenv()
+
 from controllers import maintain_mission_buffer, get_latest_unrequested_mission
+import logging
+
+logging.basicConfig(level=logging.INFO,
+                    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+                    filename='app.log',  # Logs are written to this file.
+                    filemode='a')  # 'a' for append, 'w' for overwrite
+
 
 
 def run_mission_buffer_maintenance():
     while True:
         maintain_mission_buffer()
-        time.sleep(60 * 5)  # Run every 10 minutes, adjust the timing as needed
+        time.sleep(
+            60 * 15
+        )  # Run every 15 minutes as the max run time including retries is 12 minutes for 5 missions
 
 
 # Start the background thread

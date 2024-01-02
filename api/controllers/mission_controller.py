@@ -1,24 +1,27 @@
+from openai_integration import ChatApp
+from prompts import mission_prompt
 from database import Session, Mission
 from generators import generate_new_mission_data, create_audio_file
+import logging
 
 
-def add_mission(mission_data):
-    session = Session()
-    # Convert list of involved pups to a comma-separated string
-    involved_pups_str = ",".join(mission_data.get("involved_pups", []))
-    mission = Mission(
-        mission_title=mission_data["mission_title"],
-        involved_pups=involved_pups_str,
-        main_location=mission_data["main_location"],
-        mission_script=mission_data["mission_script"],
-        translation=mission_data["translation"],
-    )
-    session.add(mission)
-    session.commit()
-    # Convert the mission to a dictionary
-    mission_dict = {c.name: getattr(mission, c.name) for c in mission.__table__.columns}
-    session.close()
-    return mission_dict
+def add_mission(mission_data, session):
+    try:
+        involved_pups_str = ",".join(mission_data.get("involved_pups", []))
+        mission = Mission(
+            mission_title=mission_data["mission_title"],
+            involved_pups=involved_pups_str,
+            main_location=mission_data["main_location"],
+            mission_script=mission_data["mission_script"],
+            translation=mission_data["translation"],
+        )
+        session.add(mission)
+        session.commit()
+        return mission.to_dict()
+    except Exception as e:
+        logging.error(f"Error adding mission to the database: {e}")
+        print(f"Error adding mission to the database: {e}")
+        return None
 
 
 def get_mission_by_id(mission_id):
@@ -28,7 +31,7 @@ def get_mission_by_id(mission_id):
         mission.is_requested = True
         session.commit()
     session.close()
-    return mission
+    return mission.to_dict() if mission else None
 
 
 def get_mission_by_title(title):
@@ -38,7 +41,7 @@ def get_mission_by_title(title):
         mission.is_requested = True
         session.commit()
     session.close()
-    return mission
+    return mission.to_dict() if mission else None
 
 
 def get_latest_unrequested_mission():
@@ -46,36 +49,70 @@ def get_latest_unrequested_mission():
     mission = (
         session.query(Mission)
         .filter(Mission.is_requested == False)
-        .order_by(Mission.id.desc())
+        .order_by(Mission.id.asc())
         .first()
     )
     if mission:
         mission.is_requested = True
         session.commit()
-    mission_dict = {c.name: getattr(mission, c.name) for c in mission.__table__.columns}
     session.close()
-    return mission_dict
+    return mission.to_dict() if mission else None
+
+
+def delete_mission(mission_id, session):
+    try:
+        mission = session.query(Mission).get(mission_id)
+        if mission:
+            session.delete(mission)
+            session.commit()
+    except Exception as e:
+        logging.error(f"Error deleting mission from the database: {e}")
+        print(f"Error deleting mission from the database: {e}")
 
 
 def maintain_mission_buffer(buffer_size=5):
     session = Session()
-    unrequested_count = (
-        session.query(Mission).filter(Mission.is_requested == False).count()
-    )
-    needed_missions = buffer_size - unrequested_count
+    try:
+        chat_app = ChatApp(
+            response_format={"type": "json_object"},
+            temperature=0.7,
+            max_tokens=4095,
+            top_p=1,
+            frequency_penalty=0.3,
+        )
+        while True:
+            unrequested_count = (
+                session.query(Mission).filter(Mission.is_requested == False).count()
+            )
+            if unrequested_count >= buffer_size:
+                break
 
-    for _ in range(needed_missions):
-        new_mission_data = generate_new_mission_data()
-        new_mission = add_mission(new_mission_data)
-        audio_file_name = f"mission_{new_mission.get('id')}"
-        audio_script = new_mission.get("translation")
-        # Create the audio file
-        result = create_audio_file(audio_file_name, audio_script)
+            # Fetch the latest mission
+            latest_mission = session.query(Mission).order_by(Mission.id.desc()).first()
+            latest_mission_data = None
+            if latest_mission:
+                latest_mission_data = latest_mission.to_dict()
 
-        # Check if the audio file was successfully created
-        if result:
-            print("Audio file created successfully.")
-        else:
-            print("Failed to create the audio file.")
+            new_mission_data = generate_new_mission_data(latest_mission_data, chat_app)
+            if new_mission_data is None:
+                continue
 
-    session.close()
+            new_mission = add_mission(new_mission_data, session)
+            if new_mission is None:
+                continue
+
+            audio_file_name = f"mission_{new_mission.get('id')}"
+            audio_script = new_mission.get("translation")
+            if not create_audio_file(audio_file_name, audio_script):
+                logging.error(
+                    "Failed to create the audio file after retries. Deleting the mission entry."
+                )
+                print(
+                    "Failed to create the audio file after retries. Deleting the mission entry."
+                )
+                delete_mission(new_mission.get("id"), session)
+            else:
+                logging.info("Audio file created successfully.")
+                print("Audio file created successfully.")
+    finally:
+        session.close()

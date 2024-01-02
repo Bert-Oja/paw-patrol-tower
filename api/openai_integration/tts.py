@@ -1,5 +1,5 @@
 import openai
-
+import logging
 
 class TTS:
     def create_mission_audio(self, path, text):
@@ -10,5 +10,6 @@ class TTS:
             response.stream_to_file(path)
             return True
         except Exception as e:
+            logging.error(f"An error occured when creating the audio file: {e}")
             print(f"An error occured when creating the audio file: {e}")
             return False

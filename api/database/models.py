@@ -30,6 +30,17 @@ class Mission(Base):
         return (
             f"<Mission(title='{self.mission_title}', location='{self.main_location}')>"
         )
+        
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "mission_title": self.mission_title,
+            "involved_pups": self.involved_pups,
+            "main_location": self.main_location,
+            "mission_script": self.mission_script,
+            "translation": self.translation,
+            "is_requested": self.is_requested,
+        }
 
 
 # Create all tables in the engine
