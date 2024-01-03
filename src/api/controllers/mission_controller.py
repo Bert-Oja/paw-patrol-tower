@@ -1,11 +1,28 @@
-from openai_integration import ChatApp
-from prompts import mission_prompt
-from database import Session, Mission
-from generators import generate_new_mission_data, create_audio_file
+"""
+This module contains functions for managing missions in the Paw Patrol Tower API.
+"""
 import logging
+import os
+from typing import Dict
+from sqlalchemy.exc import SQLAlchemyError
+from api.openai_integration import ChatApp
+from api.database import Session, Mission
+from api.generators import generate_new_mission_data, create_audio_file
+
+# pylint: disable=singleton-comparison
 
 
-def add_mission(mission_data, session):
+def add_mission(mission_data: Dict[str, any], session: Session):
+    """
+    Add a new mission to the database.
+
+    Args:
+        mission_data (dict): The data of the mission to be added.
+        session (Session): The database session.
+
+    Returns:
+        dict: The added mission data if successful, None otherwise.
+    """
     try:
         involved_pups_str = ",".join(mission_data.get("involved_pups", []))
         mission = Mission(
@@ -18,13 +35,29 @@ def add_mission(mission_data, session):
         session.add(mission)
         session.commit()
         return mission.to_dict()
-    except Exception as e:
-        logging.error(f"Error adding mission to the database: {e}")
-        print(f"Error adding mission to the database: {e}")
-        return None
+
+    except KeyError as e:  # Specific exception for missing dictionary keys
+        logging.error("KeyError: Missing data in mission_data: %s", e)
+        print(f"KeyError: Missing data in mission_data: {e}")
+
+    except SQLAlchemyError as e:  # Base class for all SQLAlchemy exceptions
+        logging.error("Database error: %s", e)
+        print(f"Database error: {e}")
+
+    logging.error("Failed to add mission to the database.")
+    return None  # Return None outside of the try-except block
 
 
 def get_mission_by_id(mission_id):
+    """
+    Get a mission by its ID.
+
+    Args:
+        mission_id (int): The ID of the mission.
+
+    Returns:
+        dict: The mission data if found, None otherwise.
+    """
     session = Session()
     mission = session.query(Mission).filter(Mission.id == mission_id).first()
     if mission:
@@ -35,6 +68,15 @@ def get_mission_by_id(mission_id):
 
 
 def get_mission_by_title(title):
+    """
+    Get a mission by its title.
+
+    Args:
+        title (str): The title of the mission.
+
+    Returns:
+        dict: The mission data if found, None otherwise.
+    """
     session = Session()
     mission = session.query(Mission).filter(Mission.mission_title == title).first()
     if mission:
@@ -45,6 +87,12 @@ def get_mission_by_title(title):
 
 
 def get_latest_unrequested_mission():
+    """
+    Get the latest unrequested mission.
+
+    Returns:
+        dict: The mission data if found, None otherwise.
+    """
     session = Session()
     mission = (
         session.query(Mission)
@@ -60,23 +108,36 @@ def get_latest_unrequested_mission():
 
 
 def delete_mission(mission_id, session):
+    """
+    Delete a mission from the database.
+
+    Args:
+        mission_id (int): The ID of the mission.
+        session: The database session.
+    """
     try:
         mission = session.query(Mission).get(mission_id)
         if mission:
             session.delete(mission)
             session.commit()
-    except Exception as e:
-        logging.error(f"Error deleting mission from the database: {e}")
-        print(f"Error deleting mission from the database: {e}")
+    except SQLAlchemyError as e:
+        logging.error("Error deleting mission from the database: %s", e)
+        print("Error deleting mission from the database: %s", e)
 
 
 def maintain_mission_buffer(buffer_size=5):
+    """
+    Maintain the mission buffer by generating new missions.
+
+    Args:
+        buffer_size (int): The desired size of the mission buffer.
+    """
     session = Session()
     try:
         chat_app = ChatApp(
             response_format={"type": "json_object"},
-            temperature=0.7,
-            max_tokens=4095,
+            temperature=0.8,
+            max_tokens=int(os.getenv("OPENAI_MAX_TOKENS", "2048")),
             top_p=1,
             frequency_penalty=0.3,
         )
@@ -116,3 +177,6 @@ def maintain_mission_buffer(buffer_size=5):
                 print("Audio file created successfully.")
     finally:
         session.close()
+
+
+# pylint: enable=singleton-comparison

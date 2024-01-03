@@ -1,3 +1,6 @@
+"""
+This module contains the controllers for managing missions in the Paw Patrol Tower API.
+"""
 from .mission_controller import (
     add_mission,
     get_mission_by_id,
