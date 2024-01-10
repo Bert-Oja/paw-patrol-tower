@@ -58,13 +58,15 @@ def get_mission_by_id(mission_id):
     Returns:
         dict: The mission data if found, None otherwise.
     """
+    return_data = None
     session = Session()
     mission = session.query(Mission).filter(Mission.id == mission_id).first()
     if mission:
         mission.is_requested = True
         session.commit()
+        return_data = mission.to_dict()
     session.close()
-    return mission.to_dict() if mission else None
+    return return_data
 
 
 def get_mission_by_title(title):
@@ -77,13 +79,15 @@ def get_mission_by_title(title):
     Returns:
         dict: The mission data if found, None otherwise.
     """
+    return_data = None
     session = Session()
     mission = session.query(Mission).filter(Mission.mission_title == title).first()
     if mission:
         mission.is_requested = True
         session.commit()
+        return_data = mission.to_dict()
     session.close()
-    return mission.to_dict() if mission else None
+    return return_data
 
 
 def get_latest_unrequested_mission():
@@ -93,6 +97,7 @@ def get_latest_unrequested_mission():
     Returns:
         dict: The mission data if found, None otherwise.
     """
+    return_data = None
     session = Session()
     mission = (
         session.query(Mission)
@@ -103,8 +108,9 @@ def get_latest_unrequested_mission():
     if mission:
         mission.is_requested = True
         session.commit()
+        return_data = mission.to_dict()
     session.close()
-    return mission.to_dict() if mission else None
+    return return_data
 
 
 def delete_mission(mission_id, session):

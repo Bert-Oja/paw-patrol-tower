@@ -9,7 +9,7 @@ Building an interactive Paw Patrol Tower for engaging play experiences. The proj
 ### Docker
 
 Copy `.env.template` to `.env` and update the values for the secrets.
-Run Docker with `docker run --name paw-patrol-tower -v /your/preferred/application/data/location:/app/data -p 5000:5000 --env-file .env -d paw-patrol-tower:latest`
+Run Docker with `docker run --name paw-patrol-tower -v /your/preferred/application/data/location:/data -p 5000:5000 --env-file .env -d bertoja/paw-patrol-tower:latest`
 Replace the paths with your preferred paths. Note that this volume is mapped to the default paths specified in the .env file. If those are changed, make sure to update the volume path as well.
 
 ### GET /mission
